@@ -93,6 +93,16 @@ sys_trace(void)
   return trace(mask);
 }
 
+uint
+sys_sysinfo(void)
+{
+  uint64 va;
+  if (argaddr(0, &va) < 0) {
+    return -1;
+  }
+  return sysinfo(va);
+}
+
 // return how many clock tick interrupts have occurred
 // since start.
 uint64

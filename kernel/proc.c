@@ -4,6 +4,7 @@
 #include "riscv.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 #include "defs.h"
 
 struct cpu cpus[NCPU];
@@ -644,6 +645,30 @@ int trace(int mask)
   struct proc *p = myproc();
   p->tracemask = mask;
   return 0;
+}
+
+int sysinfo(uint64 dstva) 
+{
+  struct sysinfo info;
+  info.freemem = freememcnt();
+  info.nproc = proccnt();
+
+  struct proc *p = myproc();
+  return copyout(p->pagetable, dstva, (char*)(&info), sizeof(info));
+}
+
+int proccnt(void)
+{
+  int cnt = 0;
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state != UNUSED) {
+      cnt++;
+    }
+    release(&p->lock);
+  }
+  return cnt;
 }
 // Copy to either a user address, or kernel address,
 // depending on usr_dst.
