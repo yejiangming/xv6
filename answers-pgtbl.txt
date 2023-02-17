@@ -1,0 +1,14 @@
+#define PTE_V (1L << 0) // valid
+#define PTE_R (1L << 1)
+#define PTE_W (1L << 2)
+#define PTE_X (1L << 3)
+#define PTE_U (1L << 4) // 1 -> user can access
+
+page0: 0x0000000021fdac1f
+page1: 0x0000000021fda00f
+page2: 0x0000000021fd9c1f
+
+page0 代码
+page1 guard page user mode 下不能访问 
+page2 stack
+
