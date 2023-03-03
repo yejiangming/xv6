@@ -21,30 +21,55 @@ extern char trampoline[]; // trampoline.S
 void
 kvminit()
 {
-  kernel_pagetable = (pagetable_t) kalloc();
-  memset(kernel_pagetable, 0, PGSIZE);
+  kernel_pagetable = kvmcreate();
+}
+
+/*
+ * create a kernel page table
+ */
+pagetable_t
+kvmcreate()
+{
+  pagetable_t pgtable = (pagetable_t) kalloc();
+  memset(pgtable, 0, PGSIZE);
 
   // uart registers
-  kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
+  if(mappages(pgtable, UART0, PGSIZE, UART0, PTE_R | PTE_W) != 0) {
+    panic("kvmcreate");
+  }
 
   // virtio mmio disk interface
-  kvmmap(VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+  if(mappages(pgtable, VIRTIO0, PGSIZE, VIRTIO0, PTE_R | PTE_W) != 0) {
+    panic("kvmcreate");
+  }
 
   // CLINT
-  kvmmap(CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+  if(mappages(pgtable, CLINT, 0x10000, CLINT, PTE_R | PTE_W) != 0) {
+    panic("kvmcreate");
+  }
 
   // PLIC
-  kvmmap(PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+  if(mappages(pgtable, PLIC, 0x400000, PLIC, PTE_R | PTE_W) != 0) {
+    panic("kvmcreate");
+  }
 
   // map kernel text executable and read-only.
-  kvmmap(KERNBASE, KERNBASE, (uint64)etext-KERNBASE, PTE_R | PTE_X);
+  if(mappages(pgtable, KERNBASE, (uint64)etext-KERNBASE, KERNBASE, PTE_R | PTE_X) != 0) {
+    panic("kvmcreate");
+  }
 
   // map kernel data and the physical RAM we'll make use of.
-  kvmmap((uint64)etext, (uint64)etext, PHYSTOP-(uint64)etext, PTE_R | PTE_W);
+  if(mappages(pgtable, (uint64)etext, PHYSTOP-(uint64)etext, (uint64)etext, PTE_R | PTE_W) != 0) {
+    panic("kvmcreate");
+  }
 
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
-  kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  if(mappages(pgtable, TRAMPOLINE, PGSIZE, (uint64)trampoline, PTE_R | PTE_X) != 0) {
+    panic("kvmcreate");
+  }
+
+  return pgtable;
 }
 
 // Switch h/w page table register to the kernel's page table,
@@ -53,6 +78,12 @@ void
 kvminithart()
 {
   w_satp(MAKE_SATP(kernel_pagetable));
+  sfence_vma();
+}
+
+void
+switch_kernelpagetable(pagetable_t pagetable) {
+  w_satp(MAKE_SATP(pagetable));
   sfence_vma();
 }
 

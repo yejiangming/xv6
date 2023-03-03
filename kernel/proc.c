@@ -40,6 +40,8 @@ procinit(void)
       uint64 va = KSTACK((int) (p - proc));
       kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
       p->kstack = va;
+      p->kernel_pagetable = kvmcreate();
+      mappages(p->kernel_pagetable, p->kstack, PGSIZE, pa, PTE_R | PTE_W);
   }
   kvminithart();
 }
@@ -473,7 +475,10 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+
+        switch_kernelpagetable(p->kernel_pagetable);
         swtch(&c->context, &p->context);
+        kvminithart();
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
